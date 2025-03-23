@@ -8,6 +8,8 @@ import helmet from "helmet";
 import compression from "compression";
 import logger from './utils/logger';
 import mongoose from "mongoose";
+import authRoutes from './routes/auth.routes';
+import todoRoutes from './routes/todo.routes';
 
 const app = express();
 app.use(express.json());
@@ -39,6 +41,9 @@ app.get("/health", (_, res) => {
     logger.error("logger is working correctly");
     res.status(200).json({ status: "OK" });
 });
+
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/todo", todoRoutes)
 
 app.use("*", (_, res) => {
     res.status(404).json({ message: "Resource not found" });
