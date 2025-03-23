@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableWithoutFeedback, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import {
     Text,
@@ -7,20 +7,55 @@ import {
     Button,
     Divider,
     TextInput,
-    Dialog,
-    Portal,
     Snackbar,
     IconButton,
-    Surface
+    Surface,
+    ActivityIndicator
 } from 'react-native-paper';
 import * as Animatable from 'react-native-animatable';
 import { useAuth } from '../../context/AuthContext';
+import ActionSheet from 'react-native-actions-sheet';
+
+// Skeleton loader for profile
+const ProfileSkeleton = () => (
+    <View>
+        <Animatable.View
+            animation="pulse"
+            easing="ease-out"
+            iterationCount="infinite"
+            duration={1500}
+            style={styles.profileHeader}
+        >
+            <View style={styles.skeletonAvatar} />
+            <View style={styles.userInfo}>
+                <View style={[styles.skeletonText, { width: 150, height: 20 }]} />
+                <View style={[styles.skeletonText, { width: 200, marginTop: 8 }]} />
+            </View>
+        </Animatable.View>
+
+        <Animatable.View
+            animation="pulse"
+            easing="ease-out"
+            iterationCount="infinite"
+            duration={1500}
+            delay={200}
+            style={[styles.card, { height: 200 }]}
+        >
+            <View style={{ padding: 20 }}>
+                <View style={[styles.skeletonText, { width: 200, height: 20 }]} />
+                <View style={[styles.skeletonDivider, { marginVertical: 16 }]} />
+                <View style={[styles.skeletonButton, { marginBottom: 12 }]} />
+                <View style={[styles.skeletonButton, { marginBottom: 12 }]} />
+                <View style={[styles.skeletonDivider, { marginVertical: 16 }]} />
+                <View style={styles.skeletonButton} />
+            </View>
+        </Animatable.View>
+    </View>
+);
 
 export default function ProfileScreen() {
-    const { user, logout, updateProfile, changePassword } = useAuth();
+    const { user, logout, updateProfile, changePassword, isLoading } = useAuth();
 
-    const [editProfileDialogVisible, setEditProfileDialogVisible] = useState(false);
-    const [changePasswordDialogVisible, setChangePasswordDialogVisible] = useState(false);
     const [name, setName] = useState(user?.name || '');
     const [email, setEmail] = useState(user?.email || '');
     const [currentPassword, setCurrentPassword] = useState('');
@@ -31,6 +66,14 @@ export default function ProfileScreen() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+    // Action sheet refs
+    const editProfileActionSheetRef = useRef(null);
+    const changePasswordActionSheetRef = useRef(null);
+    const logoutActionSheetRef = useRef(null);
 
     const handleUpdateProfile = async () => {
         if (!name.trim()) {
@@ -39,12 +82,14 @@ export default function ProfileScreen() {
             return;
         }
 
+        setIsUpdatingProfile(true);
         const result = await updateProfile({ name, email });
         setSnackbarMessage(result.message);
         setSnackbarVisible(true);
+        setIsUpdatingProfile(false);
 
         if (result.success) {
-            setEditProfileDialogVisible(false);
+            editProfileActionSheetRef.current?.hide();
         }
     };
 
@@ -67,27 +112,39 @@ export default function ProfileScreen() {
             return;
         }
 
+        setIsChangingPassword(true);
         const result = await changePassword(currentPassword, newPassword);
         setSnackbarMessage(result.message);
         setSnackbarVisible(true);
+        setIsChangingPassword(false);
 
         if (result.success) {
-            setChangePasswordDialogVisible(false);
+            changePasswordActionSheetRef.current?.hide();
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
         }
     };
 
-    const openEditProfileDialog = () => {
+    const openEditProfileActionSheet = () => {
         setName(user?.name || '');
         setEmail(user?.email || '');
-        setEditProfileDialogVisible(true);
+        editProfileActionSheetRef.current?.show();
     };
 
     const handleLogout = async () => {
+        setIsLoggingOut(true);
         await logout();
+        setIsLoggingOut(false);
     };
+
+    if (isLoading) {
+        return (
+            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContainer}>
+                <ProfileSkeleton />
+            </ScrollView>
+        );
+    }
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -119,7 +176,7 @@ export default function ProfileScreen() {
                                     mode="outlined"
                                     icon="account-edit"
                                     style={styles.settingButton}
-                                    onPress={openEditProfileDialog}
+                                    onPress={openEditProfileActionSheet}
                                 >
                                     Edit Profile
                                 </Button>
@@ -132,7 +189,7 @@ export default function ProfileScreen() {
                                         setCurrentPassword('');
                                         setNewPassword('');
                                         setConfirmPassword('');
-                                        setChangePasswordDialogVisible(true);
+                                        changePasswordActionSheetRef.current?.show();
                                     }}
                                 >
                                     Change Password
@@ -144,7 +201,9 @@ export default function ProfileScreen() {
                                     mode="contained-tonal"
                                     icon="logout"
                                     style={[styles.settingButton, styles.logoutButton]}
-                                    onPress={handleLogout}
+                                    onPress={() => logoutActionSheetRef.current?.show()}
+                                    loading={isLoggingOut}
+                                    disabled={isLoggingOut}
                                 >
                                     Logout
                                 </Button>
@@ -153,88 +212,139 @@ export default function ProfileScreen() {
                     </Animatable.View>
                 </ScrollView>
 
-                {/* Edit Profile Dialog */}
-                <Portal>
-                    <Dialog visible={editProfileDialogVisible} onDismiss={() => setEditProfileDialogVisible(false)}>
-                        <Dialog.Title>Edit Profile</Dialog.Title>
-                        <Dialog.Content>
-                            <TextInput
-                                label="Name"
-                                value={name}
-                                onChangeText={setName}
+                {/* Edit Profile Action Sheet */}
+                <ActionSheet ref={editProfileActionSheetRef} containerStyle={styles.actionSheet}>
+                    <View style={styles.actionSheetContent}>
+                        <Text style={styles.actionSheetTitle}>Edit Profile</Text>
+                        <TextInput
+                            label="Name"
+                            value={name}
+                            onChangeText={text => setName(text)}
+                            mode="outlined"
+                            style={styles.dialogInput}
+                        />
+                        <TextInput
+                            label="Email"
+                            value={email}
+                            mode="outlined"
+                            style={styles.dialogInput}
+                            disabled
+                        />
+                        <View style={styles.actionButtons}>
+                            <Button
                                 mode="outlined"
-                                style={styles.dialogInput}
-                            />
-                            <TextInput
-                                label="Email"
-                                value={email}
-                                onChangeText={setEmail}
-                                mode="outlined"
-                                style={styles.dialogInput}
-                                disabled
-                            />
-                        </Dialog.Content>
-                        <Dialog.Actions>
-                            <Button onPress={() => setEditProfileDialogVisible(false)}>Cancel</Button>
-                            <Button onPress={handleUpdateProfile}>Update</Button>
-                        </Dialog.Actions>
-                    </Dialog>
-                </Portal>
+                                onPress={() => editProfileActionSheetRef.current?.hide()}
+                                style={styles.actionButton}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                mode="contained"
+                                onPress={handleUpdateProfile}
+                                style={styles.actionButton}
+                                loading={isUpdatingProfile}
+                                disabled={isUpdatingProfile}
+                            >
+                                Update
+                            </Button>
+                        </View>
+                    </View>
+                </ActionSheet>
 
-                {/* Change Password Dialog */}
-                <Portal>
-                    <Dialog visible={changePasswordDialogVisible} onDismiss={() => setChangePasswordDialogVisible(false)}>
-                        <Dialog.Title>Change Password</Dialog.Title>
-                        <Dialog.Content>
-                            <TextInput
-                                label="Current Password"
-                                value={currentPassword}
-                                onChangeText={setCurrentPassword}
-                                secureTextEntry={!showCurrentPassword}
+                {/* Change Password Action Sheet */}
+                <ActionSheet ref={changePasswordActionSheetRef} containerStyle={styles.actionSheet}>
+                    <View style={styles.actionSheetContent}>
+                        <Text style={styles.actionSheetTitle}>Change Password</Text>
+                        <TextInput
+                            label="Current Password"
+                            value={currentPassword}
+                            onChangeText={text => setCurrentPassword(text)}
+                            secureTextEntry={!showCurrentPassword}
+                            mode="outlined"
+                            style={styles.dialogInput}
+                            right={
+                                <TextInput.Icon
+                                    icon={showCurrentPassword ? "eye-off" : "eye"}
+                                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                                />
+                            }
+                        />
+                        <TextInput
+                            label="New Password"
+                            value={newPassword}
+                            onChangeText={text => setNewPassword(text)}
+                            secureTextEntry={!showNewPassword}
+                            mode="outlined"
+                            style={styles.dialogInput}
+                            right={
+                                <TextInput.Icon
+                                    icon={showNewPassword ? "eye-off" : "eye"}
+                                    onPress={() => setShowNewPassword(!showNewPassword)}
+                                />
+                            }
+                        />
+                        <TextInput
+                            label="Confirm New Password"
+                            value={confirmPassword}
+                            onChangeText={text => setConfirmPassword(text)}
+                            secureTextEntry={!showConfirmPassword}
+                            mode="outlined"
+                            style={styles.dialogInput}
+                            right={
+                                <TextInput.Icon
+                                    icon={showConfirmPassword ? "eye-off" : "eye"}
+                                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                                />
+                            }
+                        />
+                        <View style={styles.actionButtons}>
+                            <Button
                                 mode="outlined"
-                                style={styles.dialogInput}
-                                right={
-                                    <TextInput.Icon
-                                        icon={showCurrentPassword ? "eye-off" : "eye"}
-                                        onPress={() => setShowCurrentPassword(!showCurrentPassword)}
-                                    />
-                                }
-                            />
-                            <TextInput
-                                label="New Password"
-                                value={newPassword}
-                                onChangeText={setNewPassword}
-                                secureTextEntry={!showNewPassword}
+                                onPress={() => changePasswordActionSheetRef.current?.hide()}
+                                style={styles.actionButton}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                mode="contained"
+                                onPress={handleChangePassword}
+                                style={styles.actionButton}
+                                loading={isChangingPassword}
+                                disabled={isChangingPassword}
+                            >
+                                Update
+                            </Button>
+                        </View>
+                    </View>
+                </ActionSheet>
+
+                {/* Logout Confirmation Action Sheet */}
+                <ActionSheet ref={logoutActionSheetRef} containerStyle={styles.actionSheet}>
+                    <View style={styles.actionSheetContent}>
+                        <Text style={styles.actionSheetTitle}>Logout Confirmation</Text>
+                        <Text style={styles.actionSheetMessage}>
+                            Are you sure you want to logout?
+                        </Text>
+                        <View style={styles.actionButtons}>
+                            <Button
                                 mode="outlined"
-                                style={styles.dialogInput}
-                                right={
-                                    <TextInput.Icon
-                                        icon={showNewPassword ? "eye-off" : "eye"}
-                                        onPress={() => setShowNewPassword(!showNewPassword)}
-                                    />
-                                }
-                            />
-                            <TextInput
-                                label="Confirm New Password"
-                                value={confirmPassword}
-                                onChangeText={setConfirmPassword}
-                                secureTextEntry={!showConfirmPassword}
-                                mode="outlined"
-                                style={styles.dialogInput}
-                                right={
-                                    <TextInput.Icon
-                                        icon={showConfirmPassword ? "eye-off" : "eye"}
-                                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    />
-                                }
-                            />
-                        </Dialog.Content>
-                        <Dialog.Actions>
-                            <Button onPress={() => setChangePasswordDialogVisible(false)}>Cancel</Button>
-                            <Button onPress={handleChangePassword}>Update</Button>
-                        </Dialog.Actions>
-                    </Dialog>
-                </Portal>
+                                onPress={() => logoutActionSheetRef.current?.hide()}
+                                style={styles.actionButton}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                mode="contained"
+                                onPress={handleLogout}
+                                style={[styles.actionButton, styles.logoutActionButton]}
+                                loading={isLoggingOut}
+                                disabled={isLoggingOut}
+                            >
+                                Logout
+                            </Button>
+                        </View>
+                    </View>
+                </ActionSheet>
 
                 <Snackbar
                     visible={snackbarVisible}
@@ -296,4 +406,55 @@ const styles = StyleSheet.create({
     dialogInput: {
         marginBottom: 16,
     },
+    actionSheet: {
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+    },
+    actionSheetContent: {
+        padding: 20,
+        paddingBottom: 30,
+    },
+    actionSheetTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 20,
+    },
+    actionSheetMessage: {
+        fontSize: 16,
+        marginBottom: 20,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginTop: 10,
+    },
+    actionButton: {
+        marginLeft: 10,
+    },
+    logoutActionButton: {
+        backgroundColor: '#FF5252',
+    },
+    // Skeleton styles
+    skeletonText: {
+        height: 14,
+        backgroundColor: '#E0E0E0',
+        borderRadius: 4,
+    },
+    skeletonAvatar: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#E0E0E0',
+    },
+    skeletonDivider: {
+        height: 1,
+        backgroundColor: '#E0E0E0',
+        width: '100%',
+    },
+    skeletonButton: {
+        height: 40,
+        backgroundColor: '#E0E0E0',
+        borderRadius: 4,
+        marginBottom: 12,
+    }
 });

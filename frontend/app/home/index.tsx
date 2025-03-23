@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import {
     Text,
@@ -7,29 +7,65 @@ import {
     IconButton,
     FAB,
     Portal,
-    Dialog,
     TextInput,
     Checkbox,
     Divider,
     Snackbar,
-    ActivityIndicator
+    ActivityIndicator,
+    MD2Colors
 } from 'react-native-paper';
 import * as Animatable from 'react-native-animatable';
 import { useTask } from '../../context/TaskContext';
+import ActionSheet from 'react-native-actions-sheet';
+
+// Skeleton component for task loading
+const TaskSkeleton = ({ index }) => (
+    <Animatable.View
+        animation="pulse"
+        easing="ease-out"
+        iterationCount="infinite"
+        duration={1500}
+        delay={index * 100}
+    >
+        <Card style={styles.card} mode="outlined">
+            <Card.Content>
+                <View style={styles.taskHeader}>
+                    <View style={styles.taskTitleContainer}>
+                        <View style={[styles.skeletonCircle, { marginRight: 8 }]} />
+                        <View style={[styles.skeletonText, { width: '70%' }]} />
+                    </View>
+                    <View style={styles.taskActions}>
+                        <View style={styles.skeletonCircle} />
+                        <View style={styles.skeletonCircle} />
+                    </View>
+                </View>
+                <Divider style={styles.divider} />
+                <View style={[styles.skeletonText, { width: '90%', marginTop: 8 }]} />
+                <View style={[styles.skeletonText, { width: '60%', marginTop: 8 }]} />
+            </Card.Content>
+        </Card>
+    </Animatable.View>
+);
 
 export default function HomeScreen() {
     const { tasks, isLoading, fetchTasks, createTask, updateTask, deleteTask, toggleTaskStatus } = useTask();
 
     // Local state
     const [refreshing, setRefreshing] = useState(false);
-    const [createDialogVisible, setCreateDialogVisible] = useState(false);
-    const [editDialogVisible, setEditDialogVisible] = useState(false);
-    const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState('');
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [snackbarVisible, setSnackbarVisible] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isTogglingStatus, setIsTogglingStatus] = useState(null);
+
+    // Action sheet refs
+    const createActionSheetRef = useRef(null);
+    const editActionSheetRef = useRef(null);
+    const deleteActionSheetRef = useRef(null);
 
     useEffect(() => {
         fetchTasks();
@@ -48,12 +84,14 @@ export default function HomeScreen() {
             return;
         }
 
+        setIsCreating(true);
         const result = await createTask(title, description);
         setSnackbarMessage(result.message);
         setSnackbarVisible(true);
+        setIsCreating(false);
 
         if (result.success) {
-            setCreateDialogVisible(false);
+            createActionSheetRef.current?.hide();
             setTitle('');
             setDescription('');
         }
@@ -66,40 +104,48 @@ export default function HomeScreen() {
             return;
         }
 
+        setIsUpdating(true);
         const result = await updateTask(selectedTaskId, { title, description });
         setSnackbarMessage(result.message);
         setSnackbarVisible(true);
+        setIsUpdating(false);
 
         if (result.success) {
-            setEditDialogVisible(false);
+            editActionSheetRef.current?.hide();
         }
     };
 
     const handleDeleteTask = async () => {
+        setIsDeleting(true);
         const result = await deleteTask(selectedTaskId);
         setSnackbarMessage(result.message);
         setSnackbarVisible(true);
+        setIsDeleting(false);
 
         if (result.success) {
-            setDeleteDialogVisible(false);
+            deleteActionSheetRef.current?.hide();
         }
     };
 
     const handleToggleStatus = async (id) => {
+        setIsTogglingStatus(id);
         await toggleTaskStatus(id);
+        setIsTogglingStatus(null);
     };
 
-    const openEditDialog = (task) => {
+    const openEditActionSheet = (task) => {
         setSelectedTaskId(task._id);
         setTitle(task.title);
         setDescription(task.description);
-        setEditDialogVisible(true);
+        editActionSheetRef.current?.show();
     };
 
-    const openDeleteDialog = (id) => {
+    const openDeleteActionSheet = (id) => {
         setSelectedTaskId(id);
-        setDeleteDialogVisible(true);
+        deleteActionSheetRef.current?.show();
     };
+
+    // Inside your renderTaskItem function:
 
     const renderTaskItem = ({ item, index }) => (
         <Animatable.View
@@ -111,10 +157,18 @@ export default function HomeScreen() {
                 <Card.Content>
                     <View style={styles.taskHeader}>
                         <View style={styles.taskTitleContainer}>
-                            <Checkbox
-                                status={item.status ? 'checked' : 'unchecked'}
-                                onPress={() => handleToggleStatus(item._id)}
-                            />
+                            {isTogglingStatus === item._id ? (
+                                <ActivityIndicator size={20} style={{ marginRight: 8 }} />
+                            ) : (
+                                <View style={styles.checkboxOuterContainer}>
+                                    <Checkbox
+                                        status={item.status ? 'checked' : 'unchecked'}
+                                        onPress={() => handleToggleStatus(item._id)}
+                                        color={MD2Colors.blue500}
+                                        uncheckedColor={MD2Colors.grey800}
+                                    />
+                                </View>
+                            )}
                             <Text
                                 variant="titleMedium"
                                 style={[
@@ -130,12 +184,12 @@ export default function HomeScreen() {
                             <IconButton
                                 icon="pencil"
                                 size={20}
-                                onPress={() => openEditDialog(item)}
+                                onPress={() => openEditActionSheet(item)}
                             />
                             <IconButton
                                 icon="delete"
                                 size={20}
-                                onPress={() => openDeleteDialog(item._id)}
+                                onPress={() => openDeleteActionSheet(item._id)}
                             />
                         </View>
                     </View>
@@ -165,23 +219,30 @@ export default function HomeScreen() {
         </View>
     );
 
+    // Skeleton loader during initial loading
+    const renderSkeletons = () => {
+        return Array(3)
+            .fill()
+            .map((_, index) => <TaskSkeleton key={index} index={index} />);
+    };
+
     return (
         <View style={styles.container}>
-            <FlatList
-                data={tasks}
-                renderItem={renderTaskItem}
-                keyExtractor={(item) => item._id}
-                contentContainerStyle={styles.listContent}
-                ListEmptyComponent={renderEmptyList}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                }
-            />
-
-            {isLoading && !refreshing && (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" />
+            {isLoading && !refreshing ? (
+                <View style={styles.listContent}>
+                    {renderSkeletons()}
                 </View>
+            ) : (
+                <FlatList
+                    data={tasks}
+                    renderItem={renderTaskItem}
+                    keyExtractor={(item) => item._id}
+                    contentContainerStyle={styles.listContent}
+                    ListEmptyComponent={renderEmptyList}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    }
+                />
             )}
 
             <FAB
@@ -190,81 +251,119 @@ export default function HomeScreen() {
                 onPress={() => {
                     setTitle('');
                     setDescription('');
-                    setCreateDialogVisible(true);
+                    createActionSheetRef.current?.show();
                 }}
             />
 
-            {/* Create Task Dialog */}
-            <Portal>
-                <Dialog visible={createDialogVisible} onDismiss={() => setCreateDialogVisible(false)}>
-                    <Dialog.Title>Create New Task</Dialog.Title>
-                    <Dialog.Content>
-                        <TextInput
-                            label="Title"
-                            value={title}
-                            onChangeText={setTitle}
+            {/* Create Task Action Sheet */}
+            <ActionSheet ref={createActionSheetRef} containerStyle={styles.actionSheet}>
+                <View style={styles.actionSheetContent}>
+                    <Text style={styles.actionSheetTitle}>Create New Task</Text>
+                    <TextInput
+                        label="Title"
+                        value={title}
+                        onChangeText={text => setTitle(text)}
+                        mode="outlined"
+                        style={styles.dialogInput}
+                    />
+                    <TextInput
+                        label="Description"
+                        value={description}
+                        onChangeText={text => setDescription(text)}
+                        mode="outlined"
+                        multiline
+                        numberOfLines={3}
+                        style={styles.dialogInput}
+                    />
+                    <View style={styles.actionButtons}>
+                        <Button
                             mode="outlined"
-                            style={styles.dialogInput}
-                        />
-                        <TextInput
-                            label="Description"
-                            value={description}
-                            onChangeText={setDescription}
-                            mode="outlined"
-                            multiline
-                            numberOfLines={3}
-                            style={styles.dialogInput}
-                        />
-                    </Dialog.Content>
-                    <Dialog.Actions>
-                        <Button onPress={() => setCreateDialogVisible(false)}>Cancel</Button>
-                        <Button onPress={handleCreateTask}>Create</Button>
-                    </Dialog.Actions>
-                </Dialog>
-            </Portal>
+                            onPress={() => createActionSheetRef.current?.hide()}
+                            style={styles.actionButton}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            mode="contained"
+                            onPress={handleCreateTask}
+                            style={styles.actionButton}
+                            loading={isCreating}
+                            disabled={isCreating}
+                        >
+                            Create
+                        </Button>
+                    </View>
+                </View>
+            </ActionSheet>
 
-            {/* Edit Task Dialog */}
-            <Portal>
-                <Dialog visible={editDialogVisible} onDismiss={() => setEditDialogVisible(false)}>
-                    <Dialog.Title>Edit Task</Dialog.Title>
-                    <Dialog.Content>
-                        <TextInput
-                            label="Title"
-                            value={title}
-                            onChangeText={setTitle}
+            {/* Edit Task Action Sheet */}
+            <ActionSheet ref={editActionSheetRef} containerStyle={styles.actionSheet}>
+                <View style={styles.actionSheetContent}>
+                    <Text style={styles.actionSheetTitle}>Edit Task</Text>
+                    <TextInput
+                        label="Title"
+                        value={title}
+                        onChangeText={text => setTitle(text)}
+                        mode="outlined"
+                        style={styles.dialogInput}
+                    />
+                    <TextInput
+                        label="Description"
+                        value={description}
+                        onChangeText={text => setDescription(text)}
+                        mode="outlined"
+                        multiline
+                        numberOfLines={3}
+                        style={styles.dialogInput}
+                    />
+                    <View style={styles.actionButtons}>
+                        <Button
                             mode="outlined"
-                            style={styles.dialogInput}
-                        />
-                        <TextInput
-                            label="Description"
-                            value={description}
-                            onChangeText={setDescription}
-                            mode="outlined"
-                            multiline
-                            numberOfLines={3}
-                            style={styles.dialogInput}
-                        />
-                    </Dialog.Content>
-                    <Dialog.Actions>
-                        <Button onPress={() => setEditDialogVisible(false)}>Cancel</Button>
-                        <Button onPress={handleEditTask}>Update</Button>
-                    </Dialog.Actions>
-                </Dialog>
-            </Portal>
+                            onPress={() => editActionSheetRef.current?.hide()}
+                            style={styles.actionButton}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            mode="contained"
+                            onPress={handleEditTask}
+                            style={styles.actionButton}
+                            loading={isUpdating}
+                            disabled={isUpdating}
+                        >
+                            Update
+                        </Button>
+                    </View>
+                </View>
+            </ActionSheet>
 
-            {/* Delete Task Dialog */}
-            <Portal>
-                <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
-                    <Dialog.Title>Delete Task</Dialog.Title>
-                    <Dialog.Content>
-                        <Text variant="bodyMedium">Are you sure you want to delete this task?</Text>
-                    </Dialog.Content>
-                    <Dialog.Actions>
-                        <Button onPress={() => setDeleteDialogVisible(false)}>Cancel</Button>
-                        <Button onPress={handleDeleteTask}>Delete</Button>
-                    </Dialog.Actions>
-                </Dialog>
-            </Portal>
+            {/* Delete Task Action Sheet */}
+            <ActionSheet ref={deleteActionSheetRef} containerStyle={styles.actionSheet}>
+                <View style={styles.actionSheetContent}>
+                    <Text style={styles.actionSheetTitle}>Delete Task</Text>
+                    <Text style={styles.actionSheetMessage}>
+                        Are you sure you want to delete this task?
+                    </Text>
+                    <View style={styles.actionButtons}>
+                        <Button
+                            mode="outlined"
+                            onPress={() => deleteActionSheetRef.current?.hide()}
+                            style={styles.actionButton}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            mode="contained"
+                            onPress={handleDeleteTask}
+                            style={[styles.actionButton, styles.deleteButton]}
+                            loading={isDeleting}
+                            disabled={isDeleting}
+                        >
+                            Delete
+                        </Button>
+                    </View>
+                </View>
+            </ActionSheet>
 
             <Snackbar
                 visible={snackbarVisible}
@@ -353,5 +452,72 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    },
+    actionSheet: {
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+    },
+    actionSheetContent: {
+        padding: 20,
+        paddingBottom: 30,
+    },
+    actionSheetTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 20,
+    },
+    actionSheetMessage: {
+        fontSize: 16,
+        marginBottom: 20,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginTop: 10,
+    },
+    actionButton: {
+        marginLeft: 10,
+    },
+    deleteButton: {
+        backgroundColor: '#FF5252',
+    },
+    checkboxWrapper: {
+        position: 'relative',
+        width: 24,
+        height: 24,
+        marginRight: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyCheckboxOverlay: {
+        position: 'absolute',
+        top: 4,
+        left: 4,
+        right: 4,
+        bottom: 4,
+        borderWidth: 2,
+        borderColor: MD2Colors.grey800,
+        borderRadius: 2,
+        backgroundColor: 'transparent',
+    },
+    // Skeleton styles
+    skeletonText: {
+        height: 14,
+        backgroundColor: '#E0E0E0',
+        borderRadius: 4,
+    },
+    skeletonCircle: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#E0E0E0',
+        marginHorizontal: 4,
+    },
+    checkboxOuterContainer: {
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: MD2Colors.grey800,
+        borderRadius: 4,
+        backgroundColor: 'transparent',
     },
 });
