@@ -1,22 +1,47 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, StatusBar, TouchableOpacity } from 'react-native';
 import {
     Text,
     Card,
     Button,
     IconButton,
     FAB,
-    Portal,
     TextInput,
-    Checkbox,
     Divider,
     Snackbar,
     ActivityIndicator,
-    MD2Colors
+    MD2Colors,
+    useTheme
 } from 'react-native-paper';
 import * as Animatable from 'react-native-animatable';
 import { useTask } from '../../context/TaskContext';
 import ActionSheet from 'react-native-actions-sheet';
+
+// Custom checkbox component to ensure visibility
+const CustomCheckbox = ({ checked, onPress, isLoading }) => {
+    if (isLoading) {
+        return <ActivityIndicator size={20} style={{ marginRight: 12 }} />;
+    }
+
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            style={[
+                styles.customCheckbox,
+                checked && styles.customCheckboxChecked
+            ]}
+        >
+            {checked && (
+                <IconButton
+                    icon="check"
+                    size={16}
+                    iconColor="#fff"
+                    style={styles.checkIcon}
+                />
+            )}
+        </TouchableOpacity>
+    );
+};
 
 // Skeleton component for task loading
 const TaskSkeleton = ({ index }) => (
@@ -48,6 +73,7 @@ const TaskSkeleton = ({ index }) => (
 );
 
 export default function HomeScreen() {
+    const theme = useTheme();
     const { tasks, isLoading, fetchTasks, createTask, updateTask, deleteTask, toggleTaskStatus } = useTask();
 
     // Local state
@@ -69,6 +95,9 @@ export default function HomeScreen() {
 
     useEffect(() => {
         fetchTasks();
+        // Set status bar style
+        StatusBar.setBarStyle('dark-content');
+        StatusBar.setBackgroundColor('#f8f9fa');
     }, []);
 
     const onRefresh = useCallback(async () => {
@@ -78,8 +107,14 @@ export default function HomeScreen() {
     }, [fetchTasks]);
 
     const handleCreateTask = async () => {
-        if (!title.trim() || !description.trim()) {
-            setSnackbarMessage('Please enter both title and description');
+        if (!title.trim()) {
+            setSnackbarMessage('Please enter a title');
+            setSnackbarVisible(true);
+            return;
+        }
+
+        if (!description.trim()) {
+            setSnackbarMessage('Please enter a description');
             setSnackbarVisible(true);
             return;
         }
@@ -98,8 +133,14 @@ export default function HomeScreen() {
     };
 
     const handleEditTask = async () => {
-        if (!title.trim() || !description.trim()) {
-            setSnackbarMessage('Please enter both title and description');
+        if (!title.trim()) {
+            setSnackbarMessage('Please enter a title');
+            setSnackbarVisible(true);
+            return;
+        }
+
+        if (!description.trim()) {
+            setSnackbarMessage('Please enter a description');
             setSnackbarVisible(true);
             return;
         }
@@ -145,30 +186,43 @@ export default function HomeScreen() {
         deleteActionSheetRef.current?.show();
     };
 
-    // Inside your renderTaskItem function:
-
     const renderTaskItem = ({ item, index }) => (
         <Animatable.View
             animation="fadeIn"
             duration={500}
             delay={index * 100}
         >
-            <Card style={styles.card} mode="outlined">
+            <Card
+                style={[
+                    styles.card,
+                    item.status && styles.completedCard
+                ]}
+                mode="outlined"
+            >
                 <Card.Content>
                     <View style={styles.taskHeader}>
                         <View style={styles.taskTitleContainer}>
-                            {isTogglingStatus === item._id ? (
-                                <ActivityIndicator size={20} style={{ marginRight: 8 }} />
-                            ) : (
-                                <View style={styles.checkboxOuterContainer}>
-                                    <Checkbox
-                                        status={item.status ? 'checked' : 'unchecked'}
-                                        onPress={() => handleToggleStatus(item._id)}
-                                        color={MD2Colors.blue500}
-                                        uncheckedColor={MD2Colors.grey800}
-                                    />
-                                </View>
-                            )}
+                            <TouchableOpacity
+                                onPress={() => handleToggleStatus(item._id)}
+                                style={[
+                                    styles.customCheckbox,
+                                    item.status && styles.customCheckboxChecked
+                                ]}
+                                disabled={isTogglingStatus === item._id}
+                            >
+                                {isTogglingStatus === item._id ? (
+                                    <ActivityIndicator size={16} color={item.status ? "#fff" : "#6200ee"} />
+                                ) : (
+                                    item.status && (
+                                        <IconButton
+                                            icon="check"
+                                            size={16}
+                                            iconColor="#fff"
+                                            style={styles.checkIcon}
+                                        />
+                                    )
+                                )}
+                            </TouchableOpacity>
                             <Text
                                 variant="titleMedium"
                                 style={[
@@ -182,21 +236,28 @@ export default function HomeScreen() {
                         </View>
                         <View style={styles.taskActions}>
                             <IconButton
-                                icon="pencil"
-                                size={20}
+                                icon="pencil-outline"
+                                iconColor={theme.colors.primary}
+                                size={18}
                                 onPress={() => openEditActionSheet(item)}
+                                style={styles.actionIcon}
                             />
                             <IconButton
-                                icon="delete"
-                                size={20}
+                                icon="trash-can-outline"
+                                iconColor={theme.colors.error}
+                                size={18}
                                 onPress={() => openDeleteActionSheet(item._id)}
+                                style={styles.actionIcon}
                             />
                         </View>
                     </View>
                     <Divider style={styles.divider} />
                     <Text
                         variant="bodyMedium"
-                        style={item.status && styles.completedTask}
+                        style={[
+                            styles.taskDescription,
+                            item.status && styles.completedTask
+                        ]}
                         numberOfLines={2}
                     >
                         {item.description}
@@ -212,7 +273,7 @@ export default function HomeScreen() {
                 <Animatable.View animation="fadeIn" duration={1000}>
                     <Text style={styles.emptyText}>No tasks yet</Text>
                     <Text style={styles.emptySubText}>
-                        Create your first task by clicking the + button below
+                        Create your first task by tapping the + button
                     </Text>
                 </Animatable.View>
             )}
@@ -228,6 +289,13 @@ export default function HomeScreen() {
 
     return (
         <View style={styles.container}>
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>My Tasks</Text>
+                <Text style={styles.headerSubtitle}>
+                    {tasks.filter(task => !task.status).length} remaining
+                </Text>
+            </View>
+
             {isLoading && !refreshing ? (
                 <View style={styles.listContent}>
                     {renderSkeletons()}
@@ -240,8 +308,13 @@ export default function HomeScreen() {
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={renderEmptyList}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[theme.colors.primary]}
+                        />
                     }
+                    showsVerticalScrollIndicator={false}
                 />
             )}
 
@@ -253,18 +326,21 @@ export default function HomeScreen() {
                     setDescription('');
                     createActionSheetRef.current?.show();
                 }}
+                color="#fff"
             />
 
             {/* Create Task Action Sheet */}
             <ActionSheet ref={createActionSheetRef} containerStyle={styles.actionSheet}>
                 <View style={styles.actionSheetContent}>
-                    <Text style={styles.actionSheetTitle}>Create New Task</Text>
+                    <Text style={styles.actionSheetTitle}>New Task</Text>
                     <TextInput
                         label="Title"
                         value={title}
                         onChangeText={text => setTitle(text)}
                         mode="outlined"
                         style={styles.dialogInput}
+                        outlineColor={theme.colors.outline}
+                        activeOutlineColor={theme.colors.primary}
                     />
                     <TextInput
                         label="Description"
@@ -274,21 +350,25 @@ export default function HomeScreen() {
                         multiline
                         numberOfLines={3}
                         style={styles.dialogInput}
+                        outlineColor={theme.colors.outline}
+                        activeOutlineColor={theme.colors.primary}
                     />
                     <View style={styles.actionButtons}>
                         <Button
-                            mode="outlined"
+                            mode="text"
                             onPress={() => createActionSheetRef.current?.hide()}
                             style={styles.actionButton}
+                            labelStyle={{ fontSize: 16 }}
                         >
                             Cancel
                         </Button>
                         <Button
                             mode="contained"
                             onPress={handleCreateTask}
-                            style={styles.actionButton}
+                            style={[styles.actionButton, styles.primaryButton]}
                             loading={isCreating}
                             disabled={isCreating}
+                            labelStyle={{ fontSize: 16 }}
                         >
                             Create
                         </Button>
@@ -306,6 +386,8 @@ export default function HomeScreen() {
                         onChangeText={text => setTitle(text)}
                         mode="outlined"
                         style={styles.dialogInput}
+                        outlineColor={theme.colors.outline}
+                        activeOutlineColor={theme.colors.primary}
                     />
                     <TextInput
                         label="Description"
@@ -315,21 +397,25 @@ export default function HomeScreen() {
                         multiline
                         numberOfLines={3}
                         style={styles.dialogInput}
+                        outlineColor={theme.colors.outline}
+                        activeOutlineColor={theme.colors.primary}
                     />
                     <View style={styles.actionButtons}>
                         <Button
-                            mode="outlined"
+                            mode="text"
                             onPress={() => editActionSheetRef.current?.hide()}
                             style={styles.actionButton}
+                            labelStyle={{ fontSize: 16 }}
                         >
                             Cancel
                         </Button>
                         <Button
                             mode="contained"
                             onPress={handleEditTask}
-                            style={styles.actionButton}
+                            style={[styles.actionButton, styles.primaryButton]}
                             loading={isUpdating}
                             disabled={isUpdating}
+                            labelStyle={{ fontSize: 16 }}
                         >
                             Update
                         </Button>
@@ -346,9 +432,10 @@ export default function HomeScreen() {
                     </Text>
                     <View style={styles.actionButtons}>
                         <Button
-                            mode="outlined"
+                            mode="text"
                             onPress={() => deleteActionSheetRef.current?.hide()}
                             style={styles.actionButton}
+                            labelStyle={{ fontSize: 16 }}
                         >
                             Cancel
                         </Button>
@@ -358,6 +445,8 @@ export default function HomeScreen() {
                             style={[styles.actionButton, styles.deleteButton]}
                             loading={isDeleting}
                             disabled={isDeleting}
+                            labelStyle={{ fontSize: 16 }}
+                            buttonColor={theme.colors.error}
                         >
                             Delete
                         </Button>
@@ -369,6 +458,7 @@ export default function HomeScreen() {
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
                 duration={3000}
+                style={styles.snackbar}
                 action={{
                     label: 'Close',
                     onPress: () => setSnackbarVisible(false),
@@ -383,21 +473,44 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#f8f9fa',
+    },
+    header: {
+        paddingTop: 60,
+        paddingBottom: 16,
+        paddingHorizontal: 20,
+        backgroundColor: '#f8f9fa',
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#1a1a1a',
+        marginBottom: 4,
+    },
+    headerSubtitle: {
+        fontSize: 16,
+        color: '#6c757d',
+        fontWeight: '500',
     },
     listContent: {
         padding: 16,
-        paddingBottom: 80,
+        paddingBottom: 100,
     },
     card: {
         marginBottom: 12,
-        borderRadius: 8,
+        borderRadius: 12,
+        elevation: 1,
+        borderColor: '#e0e0e0',
+        backgroundColor: '#ffffff',
+    },
+    completedCard: {
+        backgroundColor: '#f9f9f9',
+        borderColor: '#e0e0e0',
     },
     taskHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
     },
     taskTitleContainer: {
         flexDirection: 'row',
@@ -406,27 +519,40 @@ const styles = StyleSheet.create({
     },
     taskTitle: {
         fontWeight: '500',
-        marginLeft: 8,
+        marginLeft: 12,
         flex: 1,
+        color: '#333333',
+    },
+    taskDescription: {
+        color: '#555555',
     },
     completedTask: {
         textDecorationLine: 'line-through',
-        opacity: 0.6,
+        color: '#9e9e9e',
     },
     taskActions: {
         flexDirection: 'row',
     },
+    actionIcon: {
+        margin: 0,
+        marginLeft: 4,
+    },
     divider: {
-        marginBottom: 8,
+        marginVertical: 10,
+        height: 1,
+        backgroundColor: '#f0f0f0',
     },
     fab: {
         position: 'absolute',
         margin: 16,
         right: 0,
         bottom: 0,
+        backgroundColor: '#6200ee',
+        borderRadius: 30,
     },
     dialogInput: {
         marginBottom: 16,
+        backgroundColor: '#ffffff',
     },
     emptyContainer: {
         alignItems: 'center',
@@ -437,11 +563,13 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         marginBottom: 10,
+        color: '#6c757d',
     },
     emptySubText: {
         opacity: 0.7,
         textAlign: 'center',
-        paddingHorizontal: 20,
+        // paddingHorizontal: 20,
+        color: '#6c757d',
     },
     loadingContainer: {
         position: 'absolute',
@@ -454,70 +582,74 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 255, 255, 0.7)',
     },
     actionSheet: {
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
     },
     actionSheetContent: {
-        padding: 20,
-        paddingBottom: 30,
+        padding: 24,
+        paddingBottom: 36,
     },
     actionSheetTitle: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: 'bold',
         marginBottom: 20,
+        color: '#333333',
     },
     actionSheetMessage: {
         fontSize: 16,
         marginBottom: 20,
+        color: '#555555',
     },
     actionButtons: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        marginTop: 10,
+        marginTop: 16,
     },
     actionButton: {
-        marginLeft: 10,
+        marginLeft: 12,
+    },
+    primaryButton: {
+        borderRadius: 8,
     },
     deleteButton: {
-        backgroundColor: '#FF5252',
+        borderRadius: 8,
     },
-    checkboxWrapper: {
-        position: 'relative',
+    snackbar: {
+        bottom: 16,
+        borderRadius: 8,
+    },
+    // Custom checkbox styles
+    customCheckbox: {
         width: 24,
         height: 24,
-        marginRight: 8,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: '#6200ee',
+        marginRight: 12,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    emptyCheckboxOverlay: {
-        position: 'absolute',
-        top: 4,
-        left: 4,
-        right: 4,
-        bottom: 4,
-        borderWidth: 2,
-        borderColor: MD2Colors.grey800,
-        borderRadius: 2,
         backgroundColor: 'transparent',
+    },
+    customCheckboxChecked: {
+        backgroundColor: '#6200ee',
+    },
+    checkIcon: {
+        margin: 0,
+        padding: 0,
+        width: 16,
+        height: 16,
     },
     // Skeleton styles
     skeletonText: {
         height: 14,
-        backgroundColor: '#E0E0E0',
+        backgroundColor: '#f0f0f0',
         borderRadius: 4,
     },
     skeletonCircle: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: '#E0E0E0',
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: '#f0f0f0',
         marginHorizontal: 4,
-    },
-    checkboxOuterContainer: {
-        marginRight: 8,
-        borderWidth: 1,
-        borderColor: MD2Colors.grey800,
-        borderRadius: 4,
-        backgroundColor: 'transparent',
     },
 });
