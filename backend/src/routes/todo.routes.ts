@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authMiddleware from '../middleware/auth.middleware';
 import catchAsync from '../utils/catchAsync';
-import TaskController from '@/controllers/todo.controller';
+import TaskController from '../controllers/todo.controller';
 
 class TaskRoutes {
     public router: Router;
