@@ -36,53 +36,20 @@ TodoComp is a full-stack task management application built using React Native (E
 
 ### Screenshots
 
-<div align="center">
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/c0b2d077-2c59-4727-807b-9881d043ede1" width="200" alt="App Screenshot 1" />
-  </div>
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/30be12c4-f996-4682-b225-cb77a1b9d08e" width="200" alt="App Screenshot 2" />
-  </div>
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/d17468c0-0d89-4257-997b-beb619c37c90" width="200" alt="App Screenshot 3" />
-  </div>
-</div>
+### Screenshots
 
-<div align="center">
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/e017e13c-0294-4a2f-b4e8-11db6439800e" width="200" alt="App Screenshot 4" />
-  </div>
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/1169f504-ae5c-4f82-a206-4204a20d824c" width="200" alt="App Screenshot 5" />
-  </div>
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/fcb620a1-bb90-414e-93d1-f392c03bca8c" width="200" alt="App Screenshot 6" />
-  </div>
-</div>
-
-<div align="center">
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/7baac4ea-4dfe-4e96-b062-ab77487786b7" width="200" alt="App Screenshot 7" />
-  </div>
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/8c7e8451-da58-489a-97d6-6b0d6cffffed" width="200" alt="App Screenshot 8" />
-  </div>
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/0fe90831-3124-490c-a73e-6a43ccc54f64" width="200" alt="App Screenshot 9" />
-  </div>
-</div>
-
-<div align="center">
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/b6fd3bec-d638-41df-8cb0-a89551fe9dd3" width="200" alt="App Screenshot 10" />
-  </div>
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/3fb94ecc-45cd-40bd-b8ff-4eedefecd09e" width="200" alt="App Screenshot 11" />
-  </div>
-  <div style="display: inline-block; margin: 10px;">
-    <img src="https://github.com/user-attachments/assets/570dd2d1-2eec-42d7-8eaf-eba5e63f2bc7" width="200" alt="App Screenshot 12" />
-  </div>
-</div>
+<img src="https://github.com/user-attachments/assets/c0b2d077-2c59-4727-807b-9881d043ede1" width="200" alt="App Screenshot 1" />
+<img src="https://github.com/user-attachments/assets/30be12c4-f996-4682-b225-cb77a1b9d08e" width="200" alt="App Screenshot 2" />
+<img src="https://github.com/user-attachments/assets/d17468c0-0d89-4257-997b-beb619c37c90" width="200" alt="App Screenshot 3" />
+<img src="https://github.com/user-attachments/assets/e017e13c-0294-4a2f-b4e8-11db6439800e" width="200" alt="App Screenshot 4" />
+<img src="https://github.com/user-attachments/assets/1169f504-ae5c-4f82-a206-4204a20d824c" width="200" alt="App Screenshot 5" />
+<img src="https://github.com/user-attachments/assets/fcb620a1-bb90-414e-93d1-f392c03bca8c" width="200" alt="App Screenshot 6" />
+<img src="https://github.com/user-attachments/assets/7baac4ea-4dfe-4e96-b062-ab77487786b7" width="200" alt="App Screenshot 7" />
+<img src="https://github.com/user-attachments/assets/8c7e8451-da58-489a-97d6-6b0d6cffffed" width="200" alt="App Screenshot 8" />
+<img src="https://github.com/user-attachments/assets/0fe90831-3124-490c-a73e-6a43ccc54f64" width="200" alt="App Screenshot 9" />
+<img src="https://github.com/user-attachments/assets/b6fd3bec-d638-41df-8cb0-a89551fe9dd3" width="200" alt="App Screenshot 10" />
+<img src="https://github.com/user-attachments/assets/3fb94ecc-45cd-40bd-b8ff-4eedefecd09e" width="200" alt="App Screenshot 11" />
+<img src="https://github.com/user-attachments/assets/570dd2d1-2eec-42d7-8eaf-eba5e63f2bc7" width="200" alt="App Screenshot 12" />
 
 ## Tech Stack
 ### Frontend
