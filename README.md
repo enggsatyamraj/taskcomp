@@ -1,7 +1,7 @@
-# TodoComp - Task Manager App
+# TaskComp - Task Manager App
 
 ## Overview
-TodoComp is a full-stack task management application built using React Native (Expo) for the frontend and Node.js with MongoDB for the backend. It allows users to sign up, log in, and manage tasks with full CRUD functionality.
+TaskComp is a full-stack task management application built using React Native (Expo) for the frontend and Node.js with MongoDB for the backend. It allows users to sign up, log in, and manage tasks with full CRUD functionality.
 
 ## Features
 ### Frontend (React Native with Expo)
@@ -94,7 +94,7 @@ TodoComp is a full-stack task management application built using React Native (E
    npm run dev
    ```
 6. The backend is deployed at:
-   [TodoComp Backend](https://todocompbackend-production.up.railway.app/)
+   [TaskComp Backend](https://TaskCompbackend-production.up.railway.app/)
 
 ### Frontend Setup
 1. Navigate to the frontend directory:
@@ -110,7 +110,7 @@ TodoComp is a full-stack task management application built using React Native (E
    expo start
    ```
 4. Download the APK for testing:
-   [TodoComp APK](https://expo.dev/artifacts/eas/onUCiNos5SoNj68phuD6MX.apk)
+   [TaskComp APK](https://expo.dev/artifacts/eas/onUCiNos5SoNj68phuD6MX.apk)
 
 ## API Documentation
 The API endpoints and testing collection can be accessed via Postman:
